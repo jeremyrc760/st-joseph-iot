@@ -1,0 +1,258 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { MongooseModule } from '@nestjs/mongoose';
+import request from 'supertest';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+
+import { TelemetryController } from '../src/telemetry/telemetry.controller';
+import { TelemetryService } from '../src/telemetry/telemetry.service';
+
+import { JwtAuthGuard } from '../src/auth/jwt-auth.guard';
+import { AuthController } from '../src/auth/auth.controller';
+import { AuthService } from '../src/auth/auth.service';
+
+import { UsersService } from '../src/users/users.service';
+import {
+  User,
+  UserSchema,
+} from '../src/users/user.schema';
+
+// Give MongoDB Memory Server enough time to start.
+jest.setTimeout(30000);
+
+describe('Telemetry E2E', () => {
+  let app: INestApplication;
+  let mongoServer: MongoMemoryServer;
+
+  // Mock TelemetryService so the E2E test
+  // does not connect to Azure Event Hub or the real MongoDB telemetry database.
+  const telemetryServiceMock = {
+    findLatest: jest.fn(),
+  };
+
+  beforeAll(async () => {
+    // Start a temporary MongoDB instance for authentication test data.
+    mongoServer = await MongoMemoryServer.create();
+
+    // Get the temporary MongoDB connection URI.
+    const mongoUri = mongoServer.getUri();
+
+    // Create a NestJS test application.
+    const moduleFixture: TestingModule =
+      await Test.createTestingModule({
+        imports: [
+          // Connect Mongoose to the temporary MongoDB database.
+          MongooseModule.forRoot(mongoUri),
+
+          // Register the real User schema.
+          MongooseModule.forFeature([
+            {
+              name: User.name,
+              schema: UserSchema,
+            },
+          ]),
+
+          // Register a real JwtService.
+          // AuthService will generate JWTs using this secret,
+          // and JwtAuthGuard will verify them using the same secret.
+          JwtModule.register({
+            secret: 'test-jwt-secret',
+            signOptions: {
+              expiresIn: '1h',
+            },
+          }),
+        ],
+
+        // Use the real Auth and Telemetry controllers.
+        controllers: [
+          AuthController,
+          TelemetryController,
+        ],
+
+        providers: [
+          // Real authentication business logic.
+          AuthService,
+          UsersService,
+          JwtAuthGuard,
+
+          // Mock telemetry business logic so Azure is not involved.
+          {
+            provide: TelemetryService,
+            useValue: telemetryServiceMock,
+          },
+        ],
+      }).compile();
+
+    // Create the NestJS application.
+    app = moduleFixture.createNestApplication();
+
+    // Initialize the application.
+    await app.init();
+  });
+
+  afterAll(async () => {
+    // Close the NestJS application.
+    await app.close();
+
+    // Stop the temporary MongoDB instance.
+    await mongoServer.stop();
+  });
+
+  beforeEach(() => {
+    // Clear mock call history before each test.
+    jest.clearAllMocks();
+  });
+
+  // =========================================================
+  // Missing JWT E2E Test
+  // =========================================================
+
+  it('GET /telemetry/latest should reject a request without JWT', async () => {
+    // Send a real HTTP request without an Authorization header.
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .get('/telemetry/latest')
+      .expect(401);
+
+    // Verify the error returned by JwtAuthGuard.
+    expect(response.body.message).toBe(
+      'Missing access token',
+    );
+
+    expect(response.body.statusCode).toBe(401);
+
+    // TelemetryService should never run
+    // because the guard rejected the request first.
+    expect(
+      telemetryServiceMock.findLatest,
+    ).not.toHaveBeenCalled();
+  });
+
+  // =========================================================
+  // Authenticated Telemetry E2E Test
+  // =========================================================
+
+  it('GET /telemetry/latest should allow an authenticated user', async () => {
+    // -------------------------
+    // Arrange - Register
+    // -------------------------
+
+    // Register a real user in the temporary MongoDB database.
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'telemetry@example.com',
+        password: 'password123',
+        name: 'Telemetry User',
+      })
+      .expect(201);
+
+    // -------------------------
+    // Arrange - Login
+    // -------------------------
+
+    // Login with the registered user.
+    const loginResponse = await request(
+      app.getHttpServer(),
+    )
+      .post('/auth/login')
+      .send({
+        email: 'telemetry@example.com',
+        password: 'password123',
+      })
+      .expect(201);
+
+    // Get the real JWT generated by AuthService.
+    const accessToken =
+      loginResponse.body.accessToken;
+
+    expect(accessToken).toBeDefined();
+
+    // Fake telemetry records returned by TelemetryService.
+    const mockTelemetryRecords = [
+      {
+        deviceId: 'device-001',
+        timestamp: '2026-08-21T12:00:00.000Z',
+      },
+      {
+        deviceId: 'device-001',
+        timestamp: '2026-08-21T11:59:59.000Z',
+      },
+    ];
+
+    telemetryServiceMock.findLatest.mockResolvedValue(
+      mockTelemetryRecords,
+    );
+
+    // -------------------------
+    // Act
+    // -------------------------
+
+    // Send a protected HTTP request with the real JWT.
+    const response = await request(
+      app.getHttpServer(),
+    )
+      .get('/telemetry/latest')
+      .set(
+        'Authorization',
+        `Bearer ${accessToken}`,
+      )
+      .expect(200);
+
+    // -------------------------
+    // Assert
+    // -------------------------
+
+    // Verify that the protected controller
+    // reached TelemetryService successfully.
+    expect(
+      telemetryServiceMock.findLatest,
+    ).toHaveBeenCalledTimes(1);
+
+    // Verify the HTTP response.
+    expect(response.body).toEqual(
+      mockTelemetryRecords,
+    );
+  });
+
+  // =========================================================
+// Invalid JWT E2E Test
+// =========================================================
+
+it('GET /telemetry/latest should reject an invalid JWT', async () => {
+  // -------------------------
+  // Act
+  // -------------------------
+
+  // Send a protected HTTP request with an invalid JWT.
+  const response = await request(
+    app.getHttpServer(),
+  )
+    .get('/telemetry/latest')
+    .set(
+      'Authorization',
+      'Bearer invalid-token',
+    )
+    .expect(401);
+
+  // -------------------------
+  // Assert
+  // -------------------------
+
+  // Verify that JwtAuthGuard returns the expected error message.
+  expect(response.body.message).toBe(
+    'Invalid or expired access token',
+  );
+
+  // Verify the HTTP status code.
+  expect(response.body.statusCode).toBe(401);
+
+  // TelemetryService should never run
+  // because JwtAuthGuard rejected the invalid JWT first.
+  expect(
+    telemetryServiceMock.findLatest,
+  ).not.toHaveBeenCalled();
+});
+});
