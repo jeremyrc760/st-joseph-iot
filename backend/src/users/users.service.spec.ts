@@ -18,23 +18,21 @@ describe('UsersService', () => {
     // Create a NestJS testing module.
     // UsersService is real, while the Mongoose User model
     // is replaced with a mock object.
-    const module: TestingModule =
-      await Test.createTestingModule({
-        providers: [
-          UsersService,
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
 
-          // Provide a mocked Mongoose model using
-          // the same injection token used by @InjectModel(User.name).
-          {
-            provide: getModelToken(User.name),
-            useValue: userModelMock,
-          },
-        ],
-      }).compile();
+        // Provide a mocked Mongoose model using
+        // the same injection token used by @InjectModel(User.name).
+        {
+          provide: getModelToken(User.name),
+          useValue: userModelMock,
+        },
+      ],
+    }).compile();
 
     // Get the real UsersService instance from the testing module.
-    usersService =
-      module.get<UsersService>(UsersService);
+    usersService = module.get<UsersService>(UsersService);
 
     // Clear previous mock calls before each test.
     jest.clearAllMocks();
@@ -67,9 +65,7 @@ describe('UsersService', () => {
     };
 
     // Mock the exec() method returned by Mongoose findOne().
-    const execMock = jest.fn().mockResolvedValue(
-      mockUser,
-    );
+    const execMock = jest.fn().mockResolvedValue(mockUser);
 
     // Simulate:
     // userModel.findOne({ email }).exec()
@@ -82,18 +78,14 @@ describe('UsersService', () => {
     // -------------------------
 
     // Call the real UsersService.findByEmail() method.
-    const result = await usersService.findByEmail(
-      'test@example.com',
-    );
+    const result = await usersService.findByEmail('test@example.com');
 
     // -------------------------
     // Assert
     // -------------------------
 
     // Verify that findOne() searched using the correct email.
-    expect(
-      userModelMock.findOne,
-    ).toHaveBeenCalledWith({
+    expect(userModelMock.findOne).toHaveBeenCalledWith({
       email: 'test@example.com',
     });
 
@@ -123,9 +115,7 @@ describe('UsersService', () => {
     };
 
     // Simulate successful user creation in MongoDB.
-    userModelMock.create.mockResolvedValue(
-      mockCreatedUser,
-    );
+    userModelMock.create.mockResolvedValue(mockCreatedUser);
 
     // -------------------------
     // Act
@@ -144,18 +134,14 @@ describe('UsersService', () => {
 
     // Verify that Mongoose create() received
     // the correct user information.
-    expect(
-      userModelMock.create,
-    ).toHaveBeenCalledWith({
+    expect(userModelMock.create).toHaveBeenCalledWith({
       email: 'test@example.com',
       password: 'hashed-password',
       name: 'Jeremy',
     });
 
     // Verify that create() was called exactly once.
-    expect(
-      userModelMock.create,
-    ).toHaveBeenCalledTimes(1);
+    expect(userModelMock.create).toHaveBeenCalledTimes(1);
 
     // Verify the created user returned by the service.
     expect(result).toEqual(mockCreatedUser);

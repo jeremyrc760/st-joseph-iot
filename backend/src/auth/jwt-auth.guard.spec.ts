@@ -13,9 +13,7 @@ describe('JwtAuthGuard', () => {
 
   beforeEach(() => {
     // Create the real JwtAuthGuard with a mocked JwtService.
-    guard = new JwtAuthGuard(
-      jwtServiceMock as unknown as JwtService,
-    );
+    guard = new JwtAuthGuard(jwtServiceMock as unknown as JwtService);
 
     // Clear previous mock calls before each test.
     jest.clearAllMocks();
@@ -54,9 +52,7 @@ describe('JwtAuthGuard', () => {
     } as unknown as ExecutionContext;
 
     // Simulate successful JWT verification.
-    jwtServiceMock.verifyAsync.mockResolvedValue(
-      mockPayload,
-    );
+    jwtServiceMock.verifyAsync.mockResolvedValue(mockPayload);
 
     // -------------------------
     // Act
@@ -71,9 +67,7 @@ describe('JwtAuthGuard', () => {
 
     // Verify that JwtService received the token
     // without the "Bearer" prefix.
-    expect(
-      jwtServiceMock.verifyAsync,
-    ).toHaveBeenCalledWith('valid-token');
+    expect(jwtServiceMock.verifyAsync).toHaveBeenCalledWith('valid-token');
 
     // Verify that the guard allows the request.
     expect(result).toBe(true);
@@ -84,125 +78,115 @@ describe('JwtAuthGuard', () => {
   });
 
   it('should reject request when access token is missing', async () => {
-  // -------------------------
-  // Arrange
-  // -------------------------
+    // -------------------------
+    // Arrange
+    // -------------------------
 
-  // Fake HTTP request without an Authorization header.
-  const request = {
-    headers: {},
-  };
+    // Fake HTTP request without an Authorization header.
+    const request = {
+      headers: {},
+    };
 
-  // Mock NestJS ExecutionContext.
-  const context = {
-    switchToHttp: jest.fn().mockReturnValue({
-      getRequest: jest.fn().mockReturnValue(request),
-    }),
-  } as unknown as ExecutionContext;
+    // Mock NestJS ExecutionContext.
+    const context = {
+      switchToHttp: jest.fn().mockReturnValue({
+        getRequest: jest.fn().mockReturnValue(request),
+      }),
+    } as unknown as ExecutionContext;
 
-  // -------------------------
-  // Act + Assert
-  // -------------------------
+    // -------------------------
+    // Act + Assert
+    // -------------------------
 
-  // Verify that the guard rejects the request
-  // when no access token is provided.
-  await expect(
-    guard.canActivate(context),
-  ).rejects.toThrow('Missing access token');
+    // Verify that the guard rejects the request
+    // when no access token is provided.
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Missing access token',
+    );
 
-  // JWT verification should never run
-  // because there is no token to verify.
-  expect(
-    jwtServiceMock.verifyAsync,
-  ).not.toHaveBeenCalled();
-});
+    // JWT verification should never run
+    // because there is no token to verify.
+    expect(jwtServiceMock.verifyAsync).not.toHaveBeenCalled();
+  });
 
-it('should reject request with malformed Authorization header', async () => {
-  // -------------------------
-  // Arrange
-  // -------------------------
+  it('should reject request with malformed Authorization header', async () => {
+    // -------------------------
+    // Arrange
+    // -------------------------
 
-  // Fake HTTP request with an invalid Authorization header format.
-  const request = {
-    headers: {
-      authorization: 'Basic invalid-token',
-    },
-  };
+    // Fake HTTP request with an invalid Authorization header format.
+    const request = {
+      headers: {
+        authorization: 'Basic invalid-token',
+      },
+    };
 
-  // Mock NestJS ExecutionContext.
-  const context = {
-    switchToHttp: jest.fn().mockReturnValue({
-      getRequest: jest.fn().mockReturnValue(request),
-    }),
-  } as unknown as ExecutionContext;
+    // Mock NestJS ExecutionContext.
+    const context = {
+      switchToHttp: jest.fn().mockReturnValue({
+        getRequest: jest.fn().mockReturnValue(request),
+      }),
+    } as unknown as ExecutionContext;
 
-  // -------------------------
-  // Act + Assert
-  // -------------------------
+    // -------------------------
+    // Act + Assert
+    // -------------------------
 
-  // Verify that the guard rejects an Authorization header
-  // that does not use the Bearer token format.
-  await expect(
-    guard.canActivate(context),
-  ).rejects.toThrow('Invalid access token');
+    // Verify that the guard rejects an Authorization header
+    // that does not use the Bearer token format.
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Invalid access token',
+    );
 
-  // JWT verification should not run because
-  // the Authorization header format is invalid.
-  expect(
-    jwtServiceMock.verifyAsync,
-  ).not.toHaveBeenCalled();
-});
+    // JWT verification should not run because
+    // the Authorization header format is invalid.
+    expect(jwtServiceMock.verifyAsync).not.toHaveBeenCalled();
+  });
 
-// =========================================================
-// Invalid or Expired JWT Test
-// =========================================================
+  // =========================================================
+  // Invalid or Expired JWT Test
+  // =========================================================
 
-it('should reject request when JWT is invalid or expired', async () => {
-  // -------------------------
-  // Arrange
-  // -------------------------
+  it('should reject request when JWT is invalid or expired', async () => {
+    // -------------------------
+    // Arrange
+    // -------------------------
 
-  // Fake HTTP request with a correctly formatted Bearer token.
-  const request = {
-    headers: {
-      authorization: 'Bearer invalid-token',
-    },
-  };
+    // Fake HTTP request with a correctly formatted Bearer token.
+    const request = {
+      headers: {
+        authorization: 'Bearer invalid-token',
+      },
+    };
 
-  // Mock NestJS ExecutionContext.
-  const context = {
-    switchToHttp: jest.fn().mockReturnValue({
-      getRequest: jest.fn().mockReturnValue(request),
-    }),
-  } as unknown as ExecutionContext;
+    // Mock NestJS ExecutionContext.
+    const context = {
+      switchToHttp: jest.fn().mockReturnValue({
+        getRequest: jest.fn().mockReturnValue(request),
+      }),
+    } as unknown as ExecutionContext;
 
-  // Simulate JWT verification failure.
-  // This could represent an invalid signature or an expired token.
-  jwtServiceMock.verifyAsync.mockRejectedValue(
-    new Error('Invalid or expired JWT'),
-  );
+    // Simulate JWT verification failure.
+    // This could represent an invalid signature or an expired token.
+    jwtServiceMock.verifyAsync.mockRejectedValue(
+      new Error('Invalid or expired JWT'),
+    );
 
-  // -------------------------
-  // Act + Assert
-  // -------------------------
+    // -------------------------
+    // Act + Assert
+    // -------------------------
 
-  // Verify that the guard rejects the request
-  // when JWT verification fails.
-  await expect(
-    guard.canActivate(context),
-  ).rejects.toThrow(
-    'Invalid or expired access token',
-  );
+    // Verify that the guard rejects the request
+    // when JWT verification fails.
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Invalid or expired access token',
+    );
 
-  // Verify that JwtService attempted to verify
-  // the token extracted from the Authorization header.
-  expect(
-    jwtServiceMock.verifyAsync,
-  ).toHaveBeenCalledWith('invalid-token');
+    // Verify that JwtService attempted to verify
+    // the token extracted from the Authorization header.
+    expect(jwtServiceMock.verifyAsync).toHaveBeenCalledWith('invalid-token');
 
-  // Verify that JWT verification was attempted exactly once.
-  expect(
-    jwtServiceMock.verifyAsync,
-  ).toHaveBeenCalledTimes(1);
-});
+    // Verify that JWT verification was attempted exactly once.
+    expect(jwtServiceMock.verifyAsync).toHaveBeenCalledTimes(1);
+  });
 });

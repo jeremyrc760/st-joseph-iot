@@ -31,24 +31,23 @@ describe('AuthService', () => {
   beforeEach(async () => {
     // Create a NestJS testing module.
     // AuthService is real, while its dependencies are replaced with mocks.
-    const module: TestingModule =
-      await Test.createTestingModule({
-        providers: [
-          AuthService,
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthService,
 
-          // Replace the real UsersService with a mock.
-          {
-            provide: UsersService,
-            useValue: usersServiceMock,
-          },
+        // Replace the real UsersService with a mock.
+        {
+          provide: UsersService,
+          useValue: usersServiceMock,
+        },
 
-          // Replace the real JwtService with a mock.
-          {
-            provide: JwtService,
-            useValue: jwtServiceMock,
-          },
-        ],
-      }).compile();
+        // Replace the real JwtService with a mock.
+        {
+          provide: JwtService,
+          useValue: jwtServiceMock,
+        },
+      ],
+    }).compile();
 
     // Get the AuthService instance from the testing module.
     authService = module.get<AuthService>(AuthService);
@@ -77,14 +76,10 @@ describe('AuthService', () => {
     usersServiceMock.findByEmail.mockResolvedValue(null);
 
     // Simulate successful user creation.
-    usersServiceMock.createUser.mockResolvedValue(
-      mockCreatedUser,
-    );
+    usersServiceMock.createUser.mockResolvedValue(mockCreatedUser);
 
     // Simulate bcrypt hashing the plaintext password.
-    (bcrypt.hash as jest.Mock).mockResolvedValue(
-      'hashed-password',
-    );
+    (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
 
     // -------------------------
     // Act
@@ -102,23 +97,16 @@ describe('AuthService', () => {
     // -------------------------
 
     // Verify that AuthService checked whether the email exists.
-    expect(
-      usersServiceMock.findByEmail,
-    ).toHaveBeenCalledWith(
+    expect(usersServiceMock.findByEmail).toHaveBeenCalledWith(
       'test@example.com',
     );
 
     // Verify that bcrypt.hash() received the plaintext password
     // and 10 salt rounds.
-    expect(bcrypt.hash).toHaveBeenCalledWith(
-      'password123',
-      10,
-    );
+    expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
 
     // Verify that createUser() received the correct data.
-    expect(
-      usersServiceMock.createUser,
-    ).toHaveBeenCalledWith(
+    expect(usersServiceMock.createUser).toHaveBeenCalledWith(
       'test@example.com',
       'hashed-password',
       'Jeremy',
@@ -149,9 +137,7 @@ describe('AuthService', () => {
     };
 
     // Simulate that a user with this email already exists.
-    usersServiceMock.findByEmail.mockResolvedValue(
-      existingUser,
-    );
+    usersServiceMock.findByEmail.mockResolvedValue(existingUser);
 
     // -------------------------
     // Act
@@ -170,15 +156,11 @@ describe('AuthService', () => {
 
     // Verify that register() throws the expected exception.
     await expect(registerPromise).rejects.toThrow(
-      new BadRequestException(
-        'Email is already registered',
-      ),
+      new BadRequestException('Email is already registered'),
     );
 
     // Verify that AuthService checked the email.
-    expect(
-      usersServiceMock.findByEmail,
-    ).toHaveBeenCalledWith(
+    expect(usersServiceMock.findByEmail).toHaveBeenCalledWith(
       'test@example.com',
     );
 
@@ -187,9 +169,7 @@ describe('AuthService', () => {
     expect(bcrypt.hash).not.toHaveBeenCalled();
 
     // A new user should not be created.
-    expect(
-      usersServiceMock.createUser,
-    ).not.toHaveBeenCalled();
+    expect(usersServiceMock.createUser).not.toHaveBeenCalled();
   });
 
   // =========================================================
@@ -212,38 +192,27 @@ describe('AuthService', () => {
     };
 
     // Simulate finding the user by email.
-    usersServiceMock.findByEmail.mockResolvedValue(
-      mockUser,
-    );
+    usersServiceMock.findByEmail.mockResolvedValue(mockUser);
 
     // Simulate successful password validation.
-    (bcrypt.compare as jest.Mock).mockResolvedValue(
-      true,
-    );
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
     // Simulate JWT generation.
-    jwtServiceMock.signAsync.mockResolvedValue(
-      'mock-jwt-token',
-    );
+    jwtServiceMock.signAsync.mockResolvedValue('mock-jwt-token');
 
     // -------------------------
     // Act
     // -------------------------
 
     // Call the real AuthService.login() method.
-    const result = await authService.login(
-      'test@example.com',
-      'password123',
-    );
+    const result = await authService.login('test@example.com', 'password123');
 
     // -------------------------
     // Assert
     // -------------------------
 
     // Verify that AuthService searched for the user by email.
-    expect(
-      usersServiceMock.findByEmail,
-    ).toHaveBeenCalledWith(
+    expect(usersServiceMock.findByEmail).toHaveBeenCalledWith(
       'test@example.com',
     );
 
@@ -255,9 +224,7 @@ describe('AuthService', () => {
     );
 
     // Verify that JwtService received the correct JWT payload.
-    expect(
-      jwtServiceMock.signAsync,
-    ).toHaveBeenCalledWith({
+    expect(jwtServiceMock.signAsync).toHaveBeenCalledWith({
       sub: 'user-123',
       email: 'test@example.com',
     });
@@ -293,14 +260,10 @@ describe('AuthService', () => {
     };
 
     // Simulate finding the user successfully.
-    usersServiceMock.findByEmail.mockResolvedValue(
-      mockUser,
-    );
+    usersServiceMock.findByEmail.mockResolvedValue(mockUser);
 
     // Simulate an incorrect password.
-    (bcrypt.compare as jest.Mock).mockResolvedValue(
-      false,
-    );
+    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
     // -------------------------
     // Act
@@ -318,15 +281,11 @@ describe('AuthService', () => {
 
     // Verify that login() throws the expected exception.
     await expect(loginPromise).rejects.toThrow(
-      new BadRequestException(
-        'Invalid email or password',
-      ),
+      new BadRequestException('Invalid email or password'),
     );
 
     // Verify that the user was searched by email.
-    expect(
-      usersServiceMock.findByEmail,
-    ).toHaveBeenCalledWith(
+    expect(usersServiceMock.findByEmail).toHaveBeenCalledWith(
       'test@example.com',
     );
 
@@ -338,9 +297,7 @@ describe('AuthService', () => {
     );
 
     // JWT generation should not happen after password validation fails.
-    expect(
-      jwtServiceMock.signAsync,
-    ).not.toHaveBeenCalled();
+    expect(jwtServiceMock.signAsync).not.toHaveBeenCalled();
   });
 
   // =========================================================
@@ -371,15 +328,11 @@ describe('AuthService', () => {
 
     // Verify that login() throws the expected exception.
     await expect(loginPromise).rejects.toThrow(
-      new BadRequestException(
-        'Invalid email or password',
-      ),
+      new BadRequestException('Invalid email or password'),
     );
 
     // Verify that AuthService searched for the user by email.
-    expect(
-      usersServiceMock.findByEmail,
-    ).toHaveBeenCalledWith(
+    expect(usersServiceMock.findByEmail).toHaveBeenCalledWith(
       'missing@example.com',
     );
 
@@ -387,8 +340,6 @@ describe('AuthService', () => {
     expect(bcrypt.compare).not.toHaveBeenCalled();
 
     // JWT generation should never happen because authentication failed.
-    expect(
-      jwtServiceMock.signAsync,
-    ).not.toHaveBeenCalled();
+    expect(jwtServiceMock.signAsync).not.toHaveBeenCalled();
   });
 });

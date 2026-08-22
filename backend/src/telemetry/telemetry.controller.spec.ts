@@ -23,32 +23,28 @@ describe('TelemetryController', () => {
     // Create a NestJS testing module.
     // TelemetryController is real, while TelemetryService
     // and JwtAuthGuard are replaced with mocks.
-    const module: TestingModule =
-      await Test.createTestingModule({
-        controllers: [TelemetryController],
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [TelemetryController],
 
-        providers: [
-          {
-            provide: TelemetryService,
-            useValue: telemetryServiceMock,
-          },
-        ],
-      })
+      providers: [
+        {
+          provide: TelemetryService,
+          useValue: telemetryServiceMock,
+        },
+      ],
+    })
 
-        // Replace the real JwtAuthGuard with a mock guard.
-        // This prevents NestJS from trying to create
-        // JwtAuthGuard and inject a real JwtService.
-        .overrideGuard(JwtAuthGuard)
-        .useValue(jwtAuthGuardMock)
+      // Replace the real JwtAuthGuard with a mock guard.
+      // This prevents NestJS from trying to create
+      // JwtAuthGuard and inject a real JwtService.
+      .overrideGuard(JwtAuthGuard)
+      .useValue(jwtAuthGuardMock)
 
-        .compile();
+      .compile();
 
     // Get the real TelemetryController instance
     // from the testing module.
-    telemetryController =
-      module.get<TelemetryController>(
-        TelemetryController,
-      );
+    telemetryController = module.get<TelemetryController>(TelemetryController);
 
     // Clear previous mock calls before each test.
     jest.clearAllMocks();
@@ -58,71 +54,61 @@ describe('TelemetryController', () => {
   // Latest Telemetry Controller Test
   // =========================================================
 
-  it(
-    'should call TelemetryService.findLatest and return telemetry records',
-    async () => {
-      // -------------------------
-      // Arrange
-      // -------------------------
+  it('should call TelemetryService.findLatest and return telemetry records', async () => {
+    // -------------------------
+    // Arrange
+    // -------------------------
 
-      // Fake telemetry records that would normally
-      // be returned from MongoDB.
-      const mockTelemetryRecords = [
-        {
-          deviceId: 'device-001',
-          timestamp: '2026-08-21T12:00:00.000Z',
-          imu: {
-            ax: 0.1,
-            ay: 0.2,
-            az: 9.8,
-          },
-          load: {
-            weight: 25.5,
-          },
+    // Fake telemetry records that would normally
+    // be returned from MongoDB.
+    const mockTelemetryRecords = [
+      {
+        deviceId: 'device-001',
+        timestamp: '2026-08-21T12:00:00.000Z',
+        imu: {
+          ax: 0.1,
+          ay: 0.2,
+          az: 9.8,
         },
-        {
-          deviceId: 'device-001',
-          timestamp: '2026-08-21T11:59:59.000Z',
-          imu: {
-            ax: 0.2,
-            ay: 0.1,
-            az: 9.7,
-          },
-          load: {
-            weight: 24.8,
-          },
+        load: {
+          weight: 25.5,
         },
-      ];
+      },
+      {
+        deviceId: 'device-001',
+        timestamp: '2026-08-21T11:59:59.000Z',
+        imu: {
+          ax: 0.2,
+          ay: 0.1,
+          az: 9.7,
+        },
+        load: {
+          weight: 24.8,
+        },
+      },
+    ];
 
-      // Simulate TelemetryService returning
-      // the latest telemetry records.
-      telemetryServiceMock.findLatest.mockResolvedValue(
-        mockTelemetryRecords,
-      );
+    // Simulate TelemetryService returning
+    // the latest telemetry records.
+    telemetryServiceMock.findLatest.mockResolvedValue(mockTelemetryRecords);
 
-      // -------------------------
-      // Act
-      // -------------------------
+    // -------------------------
+    // Act
+    // -------------------------
 
-      // Call the real controller method.
-      const result =
-        await telemetryController.getLatestTelemetry();
+    // Call the real controller method.
+    const result = await telemetryController.getLatestTelemetry();
 
-      // -------------------------
-      // Assert
-      // -------------------------
+    // -------------------------
+    // Assert
+    // -------------------------
 
-      // Verify that the controller called
-      // TelemetryService.findLatest().
-      expect(
-        telemetryServiceMock.findLatest,
-      ).toHaveBeenCalledTimes(1);
+    // Verify that the controller called
+    // TelemetryService.findLatest().
+    expect(telemetryServiceMock.findLatest).toHaveBeenCalledTimes(1);
 
-      // Verify that the controller returned
-      // the result from TelemetryService.
-      expect(result).toEqual(
-        mockTelemetryRecords,
-      );
-    },
-  );
+    // Verify that the controller returned
+    // the result from TelemetryService.
+    expect(result).toEqual(mockTelemetryRecords);
+  });
 });

@@ -44,63 +44,55 @@ describe('TelemetryService', () => {
     jest.clearAllMocks();
 
     // Simulate the required IoT Hub environment variables.
-    configServiceMock.get.mockImplementation(
-      (key: string) => {
-        if (
-          key === 'IOT_HUB_EVENTHUB_CONNECTION_STRING'
-        ) {
-          return 'mock-connection-string';
-        }
+    configServiceMock.get.mockImplementation((key: string) => {
+      if (key === 'IOT_HUB_EVENTHUB_CONNECTION_STRING') {
+        return 'mock-connection-string';
+      }
 
-        if (key === 'IOT_HUB_EVENTHUB_NAME') {
-          return 'mock-event-hub-name';
-        }
+      if (key === 'IOT_HUB_EVENTHUB_NAME') {
+        return 'mock-event-hub-name';
+      }
 
-        return undefined;
-      },
-    );
+      return undefined;
+    });
 
     // Mock the EventHubConsumerClient constructor.
     // TelemetryService will receive this fake client
     // instead of connecting to Azure.
-    (
-      EventHubConsumerClient as unknown as jest.Mock
-    ).mockImplementation(() => ({
+    (EventHubConsumerClient as unknown as jest.Mock).mockImplementation(() => ({
       subscribe: subscribeMock,
     }));
 
     // Create the NestJS testing module.
     // TelemetryService is real, while its external
     // dependencies are replaced with mocks.
-    const module: TestingModule =
-      await Test.createTestingModule({
-        providers: [
-          TelemetryService,
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TelemetryService,
 
-          // Replace the real ConfigService with a mock.
-          {
-            provide: ConfigService,
-            useValue: configServiceMock,
-          },
+        // Replace the real ConfigService with a mock.
+        {
+          provide: ConfigService,
+          useValue: configServiceMock,
+        },
 
-          // Replace the real Mongoose Telemetry model
-          // with a mock.
-          {
-            provide: getModelToken(Telemetry.name),
-            useValue: telemetryModelMock,
-          },
+        // Replace the real Mongoose Telemetry model
+        // with a mock.
+        {
+          provide: getModelToken(Telemetry.name),
+          useValue: telemetryModelMock,
+        },
 
-          // Replace the real WebSocket gateway with a mock.
-          {
-            provide: TelemetryGateway,
-            useValue: telemetryGatewayMock,
-          },
-        ],
-      }).compile();
+        // Replace the real WebSocket gateway with a mock.
+        {
+          provide: TelemetryGateway,
+          useValue: telemetryGatewayMock,
+        },
+      ],
+    }).compile();
 
     // Get the real TelemetryService instance.
-    telemetryService =
-      module.get<TelemetryService>(TelemetryService);
+    telemetryService = module.get<TelemetryService>(TelemetryService);
   });
 
   afterEach(() => {
@@ -124,23 +116,15 @@ describe('TelemetryService', () => {
   it('should create the Event Hub consumer client with configuration values', () => {
     // Verify that TelemetryService requested
     // the correct environment variables.
-    expect(
-      configServiceMock.get,
-    ).toHaveBeenCalledWith(
+    expect(configServiceMock.get).toHaveBeenCalledWith(
       'IOT_HUB_EVENTHUB_CONNECTION_STRING',
     );
 
-    expect(
-      configServiceMock.get,
-    ).toHaveBeenCalledWith(
-      'IOT_HUB_EVENTHUB_NAME',
-    );
+    expect(configServiceMock.get).toHaveBeenCalledWith('IOT_HUB_EVENTHUB_NAME');
 
     // Verify that EventHubConsumerClient was created
     // with the correct consumer group and configuration.
-    expect(
-      EventHubConsumerClient,
-    ).toHaveBeenCalledWith(
+    expect(EventHubConsumerClient).toHaveBeenCalledWith(
       '$Default',
       'mock-connection-string',
       'mock-event-hub-name',
@@ -160,9 +144,7 @@ describe('TelemetryService', () => {
     // a missing IoT Hub connection string.
     const missingConfigServiceMock = {
       get: jest.fn((key: string) => {
-        if (
-          key === 'IOT_HUB_EVENTHUB_CONNECTION_STRING'
-        ) {
+        if (key === 'IOT_HUB_EVENTHUB_CONNECTION_STRING') {
           return undefined;
         }
 
@@ -198,9 +180,7 @@ describe('TelemetryService', () => {
           },
         ],
       }).compile(),
-    ).rejects.toThrow(
-      'IoT Hub configuration is missing',
-    );
+    ).rejects.toThrow('IoT Hub configuration is missing');
   });
 
   // =========================================================
@@ -262,16 +242,13 @@ describe('TelemetryService', () => {
     };
 
     // Simulate successful MongoDB insertion.
-    telemetryModelMock.create.mockResolvedValue(
-      mockTelemetry,
-    );
+    telemetryModelMock.create.mockResolvedValue(mockTelemetry);
 
     // Start the Event Hub subscription.
     telemetryService.onModuleInit();
 
     // Get the handlers passed to subscribe().
-    const eventHandlers =
-      subscribeMock.mock.calls[0][0];
+    const eventHandlers = subscribeMock.mock.calls[0][0];
 
     // -------------------------
     // Act
@@ -295,23 +272,17 @@ describe('TelemetryService', () => {
     );
 
     // Verify that the telemetry was saved to MongoDB.
-    expect(
-      telemetryModelMock.create,
-    ).toHaveBeenCalledWith(mockTelemetry);
+    expect(telemetryModelMock.create).toHaveBeenCalledWith(mockTelemetry);
 
     // Verify that the telemetry was pushed
     // to connected frontend clients.
-    expect(
-      telemetryGatewayMock.emitTelemetry,
-    ).toHaveBeenCalledWith(mockTelemetry);
+    expect(telemetryGatewayMock.emitTelemetry).toHaveBeenCalledWith(
+      mockTelemetry,
+    );
 
-    expect(
-      telemetryModelMock.create,
-    ).toHaveBeenCalledTimes(1);
+    expect(telemetryModelMock.create).toHaveBeenCalledTimes(1);
 
-    expect(
-      telemetryGatewayMock.emitTelemetry,
-    ).toHaveBeenCalledTimes(1);
+    expect(telemetryGatewayMock.emitTelemetry).toHaveBeenCalledTimes(1);
   });
 
   // =========================================================
@@ -329,16 +300,13 @@ describe('TelemetryService', () => {
       .mockImplementation(() => undefined);
 
     // Fake error that would normally come from Azure Event Hubs.
-    const mockError = new Error(
-      'Event Hub connection failed',
-    );
+    const mockError = new Error('Event Hub connection failed');
 
     // Start the Event Hub subscription.
     telemetryService.onModuleInit();
 
     // Get the handlers passed to subscribe().
-    const eventHandlers =
-      subscribeMock.mock.calls[0][0];
+    const eventHandlers = subscribeMock.mock.calls[0][0];
 
     // -------------------------
     // Act
@@ -386,21 +354,15 @@ describe('TelemetryService', () => {
     //   -> limit()
     //   -> exec()
 
-    const execMock = jest
-      .fn()
-      .mockResolvedValue(mockTelemetryRecords);
+    const execMock = jest.fn().mockResolvedValue(mockTelemetryRecords);
 
-    const limitMock = jest
-      .fn()
-      .mockReturnValue({
-        exec: execMock,
-      });
+    const limitMock = jest.fn().mockReturnValue({
+      exec: execMock,
+    });
 
-    const sortMock = jest
-      .fn()
-      .mockReturnValue({
-        limit: limitMock,
-      });
+    const sortMock = jest.fn().mockReturnValue({
+      limit: limitMock,
+    });
 
     telemetryModelMock.find.mockReturnValue({
       sort: sortMock,
@@ -411,17 +373,14 @@ describe('TelemetryService', () => {
     // -------------------------
 
     // Call the real TelemetryService.findLatest() method.
-    const result =
-      await telemetryService.findLatest();
+    const result = await telemetryService.findLatest();
 
     // -------------------------
     // Assert
     // -------------------------
 
     // Verify that the MongoDB query started with find().
-    expect(
-      telemetryModelMock.find,
-    ).toHaveBeenCalledTimes(1);
+    expect(telemetryModelMock.find).toHaveBeenCalledTimes(1);
 
     // Verify that telemetry is sorted newest first.
     expect(sortMock).toHaveBeenCalledWith({
@@ -435,8 +394,6 @@ describe('TelemetryService', () => {
     expect(execMock).toHaveBeenCalledTimes(1);
 
     // Verify the final result.
-    expect(result).toEqual(
-      mockTelemetryRecords,
-    );
+    expect(result).toEqual(mockTelemetryRecords);
   });
 });

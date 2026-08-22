@@ -1,8 +1,4 @@
-import { 
-    Controller, 
-    Get, 
-    UseGuards,
- } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 
 import { TelemetryService } from './telemetry.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
