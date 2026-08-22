@@ -21,24 +21,21 @@ describe('TelemetryGateway', () => {
   beforeEach(async () => {
     // Create a NestJS testing module.
     // TelemetryGateway is real, while JwtService is mocked.
-    const module: TestingModule =
-      await Test.createTestingModule({
-        providers: [
-          TelemetryGateway,
-          {
-            provide: JwtService,
-            useValue: jwtServiceMock,
-          },
-        ],
-      }).compile();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TelemetryGateway,
+        {
+          provide: JwtService,
+          useValue: jwtServiceMock,
+        },
+      ],
+    }).compile();
 
     // Get the real TelemetryGateway instance.
-    telemetryGateway =
-      module.get<TelemetryGateway>(TelemetryGateway);
+    telemetryGateway = module.get<TelemetryGateway>(TelemetryGateway);
 
     // Replace the real Socket.IO server with a mock server.
-    telemetryGateway.server =
-      serverMock as unknown as Server;
+    telemetryGateway.server = serverMock as unknown as Server;
 
     // Clear previous mock calls before every test.
     jest.clearAllMocks();
@@ -72,9 +69,7 @@ describe('TelemetryGateway', () => {
     } as unknown as Socket;
 
     // Simulate successful JWT verification.
-    jwtServiceMock.verifyAsync.mockResolvedValue(
-      mockPayload,
-    );
+    jwtServiceMock.verifyAsync.mockResolvedValue(mockPayload);
 
     // -------------------------
     // Act
@@ -88,9 +83,7 @@ describe('TelemetryGateway', () => {
     // -------------------------
 
     // Verify that JwtService received the access token.
-    expect(
-      jwtServiceMock.verifyAsync,
-    ).toHaveBeenCalledWith('valid-token');
+    expect(jwtServiceMock.verifyAsync).toHaveBeenCalledWith('valid-token');
 
     // Verify that the decoded user information
     // was attached to the WebSocket client.
@@ -134,9 +127,7 @@ describe('TelemetryGateway', () => {
 
     // JWT verification should never run
     // because no token was provided.
-    expect(
-      jwtServiceMock.verifyAsync,
-    ).not.toHaveBeenCalled();
+    expect(jwtServiceMock.verifyAsync).not.toHaveBeenCalled();
   });
 
   // =========================================================
@@ -176,9 +167,7 @@ describe('TelemetryGateway', () => {
     // -------------------------
 
     // Verify that JwtService attempted to verify the token.
-    expect(
-      jwtServiceMock.verifyAsync,
-    ).toHaveBeenCalledWith('invalid-token');
+    expect(jwtServiceMock.verifyAsync).toHaveBeenCalledWith('invalid-token');
 
     // Verify that the invalid client was disconnected.
     expect(client.disconnect).toHaveBeenCalledTimes(1);
@@ -220,10 +209,7 @@ describe('TelemetryGateway', () => {
 
     // Verify that Socket.IO broadcasted the telemetry event
     // with the correct event name and data.
-    expect(serverMock.emit).toHaveBeenCalledWith(
-      'telemetry',
-      mockTelemetry,
-    );
+    expect(serverMock.emit).toHaveBeenCalledWith('telemetry', mockTelemetry);
 
     // Verify that the telemetry event was emitted once.
     expect(serverMock.emit).toHaveBeenCalledTimes(1);

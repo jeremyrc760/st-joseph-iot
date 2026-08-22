@@ -25,9 +25,6 @@ import { Telemetry, TelemetrySchema } from './telemetry.schema';
   controllers: [TelemetryController],
 
   // Register telemetry business logic and WebSocket gateway
-  providers: [
-    TelemetryService,
-    TelemetryGateway,
-  ],
+  providers: [TelemetryService, TelemetryGateway],
 })
 export class TelemetryModule {}

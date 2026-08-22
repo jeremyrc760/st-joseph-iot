@@ -8,6 +8,14 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Socket, Server } from 'socket.io';
 
+type JwtPayload = Record<string, unknown>;
+
+type AuthenticatedSocket = Omit<Socket, 'data'> & {
+  data: {
+    user?: JwtPayload;
+  };
+};
+
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -22,21 +30,21 @@ export class TelemetryGateway implements OnGatewayConnection {
     private readonly jwtService: JwtService,
   ) {}
 
-  async handleConnection(
-    @ConnectedSocket() client: Socket,
-  ) {
-    // Read the JWT token from the Socket.IO authentication payload
-    const token = client.handshake.auth?.token;
+  async handleConnection(@ConnectedSocket() client: AuthenticatedSocket) {
+    // Socket.IO authentication data comes from an external client,
+    // so treat it as unknown until its type is validated.
+    const auth = client.handshake.auth as Record<string, unknown>;
+    const token = auth.token;
 
-    if (!token) {
-      // Disconnect clients that do not provide an access token
+    if (typeof token !== 'string' || token.length === 0) {
+      // Disconnect clients that do not provide a valid string token.
       client.disconnect();
       return;
     }
 
     try {
       // Verify the JWT signature and expiration
-      const payload = await this.jwtService.verifyAsync(token);
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
 
       // Attach authenticated user information to the socket connection
       client.data.user = payload;

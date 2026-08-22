@@ -1,8 +1,4 @@
-import {
-  Body,
-  Controller,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
 
@@ -23,14 +19,10 @@ export class AuthController {
     },
   ) {
     // Pass registration data to AuthService
-    return this.authService.register(
-      body.email,
-      body.password,
-      body.name,
-    );
+    return this.authService.register(body.email, body.password, body.name);
   }
 
-   @Post('login')
+  @Post('login')
   async login(
     @Body()
     body: {
@@ -39,9 +31,6 @@ export class AuthController {
     },
   ) {
     // Pass login credentials to AuthService for verification
-    return this.authService.login(
-      body.email,
-      body.password,
-    );
+    return this.authService.login(body.email, body.password);
   }
 }

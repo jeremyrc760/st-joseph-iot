@@ -46,25 +46,54 @@ export class TelemetryService implements OnModuleInit {
     );
   }
 
+  private isTelemetryPayload(data: unknown): data is Telemetry {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+      return false;
+    }
+
+    const payload = data as Record<string, unknown>;
+
+    return (
+      typeof payload.deviceId === 'string' &&
+      typeof payload.timestamp === 'string' &&
+      typeof payload.imu === 'object' &&
+      payload.imu !== null &&
+      !Array.isArray(payload.imu) &&
+      typeof payload.load === 'object' &&
+      payload.load !== null &&
+      !Array.isArray(payload.load)
+    );
+  }
+
   onModuleInit() {
     // Start listening for telemetry when the NestJS module initializes
     this.consumerClient.subscribe({
       processEvents: async (events) => {
         for (const event of events) {
+          // Treat IoT Hub message data as untrusted external input and validate it before processing
+          const body: unknown = event.body;
+
           // Log incoming telemetry for debugging
-          console.log('Received telemetry:', event.body);
+          console.log('Received telemetry:', body);
+
+          // Validate telemetry before storing or broadcasting it
+          if (!this.isTelemetryPayload(body)) {
+            console.warn('Invalid telemetry payload received:', body);
+            continue; // Skip invalid telemetry
+          }
 
           // Persist the telemetry document into MongoDB
-          await this.telemetryModel.create(event.body);
+          await this.telemetryModel.create(body);
 
           // Push the same telemetry to connected frontend clients in realtime
-          this.telemetryGateway.emitTelemetry(event.body);
+          this.telemetryGateway.emitTelemetry(body);
         }
       },
 
-      processError: async (error) => {
+      processError: (error) => {
         // Log errors that occur while consuming telemetry events
         console.error('Telemetry consumer error:', error);
+        return Promise.resolve(); // Continue processing events after an error
       },
     });
   }
