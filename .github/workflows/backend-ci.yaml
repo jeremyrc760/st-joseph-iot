@@ -1,0 +1,56 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+        # Step 1: Check out the repository source code.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+        # Step 2: Set up the Node.js runtime used by the backend
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+        # Step 3: Install backend dependencies from package-lock.json  
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+        # Step 4: Check code quality without modifying source files
+      - name: Run lint tests
+        working-directory: backend
+        run: npm run lint
+
+        # Step 5: Run backend unit tests and generate code coverage report
+      - name: Run unit tests with code coverage
+        working-directory: backend
+        run: npm run test:cov -- --runInBand
+
+        # Step 6: Compile the NestJS backend source code to JavaScript
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+        # Step 7: Save the compiled backend output as a CI artifact.
+      - name: Upload backend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dist
+          path: backend/dist
+          if-no-files-found: error
+          retention-days: 7
