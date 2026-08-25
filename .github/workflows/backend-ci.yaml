@@ -17,6 +17,8 @@ jobs:
         # Step 1: Check out the repository source code.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # SonarQube requires the full history to compute accurate code coverage and other metrics.
 
         # Step 2: Set up the Node.js runtime used by the backend
       - name: Setup Node.js
@@ -34,19 +36,37 @@ jobs:
         # Step 4: Check code quality without modifying source files
       - name: Run lint tests
         working-directory: backend
-        run: npm run lint
+        run: npm run lint:check
 
         # Step 5: Run backend unit tests and generate code coverage report
       - name: Run unit tests with code coverage
         working-directory: backend
         run: npm run test:cov -- --runInBand
 
-        # Step 6: Compile the NestJS backend source code to JavaScript
+        # Step 6: Analyze the backend source code with SonarQube
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995
+        with:
+          projectBaseDir: backend
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+         # Step 7: Fail the CI job if the SonarQube Quality Gate does not pass
+      - name: SonarQube Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
+        timeout-minutes: 5
+        with:
+          scanMetadataReportFile: backend/.scannerwork/report-task.txt
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+        # Step 8: Compile the NestJS backend source code to JavaScript
       - name: Build backend
         working-directory: backend
         run: npm run build
 
-        # Step 7: Save the compiled backend output as a CI artifact.
+        # Step 9: Save the compiled backend output as a CI artifact.
       - name: Upload backend build artifact
         uses: actions/upload-artifact@v4
         with:
