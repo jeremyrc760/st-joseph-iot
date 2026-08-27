@@ -17,10 +17,14 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: st-joseph-iot-backend
+  ECS_CLUSTER: st-joseph-iot-cluster
+  ECS_SERVICE: st-joseph-iot-backend-service-vge00ihr
+  ECS_TASK_DEFINITION: st-joseph-iot-backend
+  ECS_CONTAINER_NAME: st-joseph-backend
 
 jobs:
   build-and-push:
-    name: Build and Push Docker Image
+    name: Build, Push and Deploy Backend Docker Image to Amazon ECR and ECS
     runs-on: ubuntu-latest
 
     steps:
@@ -58,3 +62,29 @@ jobs:
         run: |
           docker push \
             $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # Step 6: Download the currently active ECS task definition
+      - name: Download current ECS task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition $ECS_TASK_DEFINITION \
+            --query taskDefinition \
+            > task-definition.json
+
+      # Step 7: Replace the container image in the ECS task definition
+      - name: Render new ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.ECS_CONTAINER_NAME }}
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+      # Step 8: Register the new task definition and deploy it to ECS
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
