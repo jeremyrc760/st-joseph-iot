@@ -1,0 +1,36 @@
+# Node.js dependencies installed on the host should not be copied
+# into the Docker build context.
+node_modules
+
+# Build output will be generated inside the Docker builder stage.
+dist
+
+# Test coverage reports are not required in the production image.
+coverage
+
+# Ignore SonarQube scanner temporary files.
+.scannerwork
+
+# Local environment files may contain secrets and must not be copied.
+.env
+.env.*
+
+# Git metadata is not required inside the container image.
+.git
+.gitignore
+
+# Docker-related files are not required inside the application image.
+Dockerfile
+.dockerignore
+
+# IDE and editor configuration files are not required.
+.vscode
+.idea
+
+# Operating system generated files.
+.DS_Store
+Thumbs.db
+
+# Log files should not be baked into the image.
+*.log
+npm-debug.log*
