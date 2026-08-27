@@ -20,7 +20,7 @@ env:
   ECS_CLUSTER: st-joseph-iot-cluster
   ECS_SERVICE: st-joseph-iot-backend-service-vge00ihr
   ECS_TASK_DEFINITION: st-joseph-iot-backend
-  ECS_CONTAINER_NAME: st-joseph-backend
+  ECS_CONTAINER_NAME: st-joseph-iot-backend
 
 jobs:
   build-and-push:
