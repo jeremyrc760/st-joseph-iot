@@ -1,10 +1,6 @@
 # Looks up existing AWS resources that the backend ECS service depends on.
 # These dependencies are referenced by Terraform but are not owned by this stack yet.
 
-data "aws_vpc" "existing" {
-  id = local.existing_vpc_id
-}
-
 data "aws_subnet" "public_1a" {
   id = local.existing_public_subnet_1a_id
 }

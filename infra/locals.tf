@@ -3,9 +3,6 @@ locals {
   aws_account_id = "697196251337"
   aws_region     = "us-east-1"
 
-  project_name = "st-joseph-iot"
-  environment  = "dev"
-
   ecr_repository_name = "st-joseph-iot-backend"
   ecs_cluster_name    = "st-joseph-iot-cluster"
   ecs_service_name    = "st-joseph-iot-backend-service-vge00ihr"
@@ -17,7 +14,6 @@ locals {
   backend_log_group_name        = "/ecs/st-joseph-iot-backend"
   backend_log_retention_in_days = 30
 
-  existing_vpc_id                   = "vpc-08f9936aeb9aa1e5e"
   existing_public_subnet_1a_id      = "subnet-0890f48526f3b657c"
   existing_public_subnet_1b_id      = "subnet-01dc482c5746a6f2c"
   existing_ecs_security_group_id    = "sg-0eb0c024d882833b6"

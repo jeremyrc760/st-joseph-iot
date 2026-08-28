@@ -5,4 +5,9 @@ resource "aws_ecr_repository" "backend" {
 
   # Prevents existing image tags from being overwritten after they are pushed.
   image_tag_mutability = "IMMUTABLE"
+
+  # Scans newly pushed images for known software vulnerabilities.
+  image_scanning_configuration {
+    scan_on_push = true
+  }
 }
