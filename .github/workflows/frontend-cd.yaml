@@ -21,7 +21,7 @@ concurrency:
 env:
   AWS_REGION: us-east-1
   S3_BUCKET: st-joseph-iot-frontend-697196251337
-  CLOUDFRONT_DISTRIBUTION_ID: EO57T40JLUFCW
+  CLOUDFRONT_DISTRIBUTION_ID: E057T40JLUFCW
   VITE_API_BASE_URL: https://api.jeremycloudlabs.com
   VITE_SOCKET_URL: https://api.jeremycloudlabs.com
 
