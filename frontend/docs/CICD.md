@@ -31,7 +31,7 @@ VITE_SOCKET_URL=https://api.jeremycloudlabs.com
 
 ```text
 S3 bucket: st-joseph-iot-frontend-697196251337
-CloudFront distribution ID: E057T40JLUFCW
+CloudFront distribution ID: EO57T4OJLUFCW
 Frontend domain: https://app.jeremycloudlabs.com
 Backend API domain: https://api.jeremycloudlabs.com
 ```
@@ -67,7 +67,7 @@ The GitHub OIDC deployment role needs permission to update the frontend bucket a
       "Action": [
         "cloudfront:CreateInvalidation"
       ],
-      "Resource": "arn:aws:cloudfront::697196251337:distribution/E057T40JLUFCW"
+      "Resource": "arn:aws:cloudfront::697196251337:distribution/EO57T4OJLUFCW"
     }
   ]
 }
