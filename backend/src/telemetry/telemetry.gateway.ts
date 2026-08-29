@@ -18,7 +18,10 @@ type AuthenticatedSocket = Omit<Socket, 'data'> & {
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.FRONTEND_ORIGIN?.split(',') ?? [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+    ],
   },
 })
 export class TelemetryGateway implements OnGatewayConnection {
