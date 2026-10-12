@@ -10,81 +10,19 @@ resource "aws_ecs_cluster" "main" {
   }
 }
 
-# Manages the existing backend task definition revision imported from ECS.
-resource "aws_ecs_task_definition" "backend" {
-  family                   = local.backend_container_name
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = "256"
-  memory                   = "512"
-  execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
+removed {
+  from = aws_ecs_task_definition.backend
 
-  runtime_platform {
-    cpu_architecture        = "X86_64"
-    operating_system_family = "LINUX"
+  lifecycle {
+    destroy = false
   }
-
-  container_definitions = jsonencode([
-    {
-      name      = local.backend_container_name
-      image     = "${aws_ecr_repository.backend.repository_url}:${local.backend_image_tag}"
-      cpu       = 0
-      essential = true
-
-      portMappings = [
-        {
-          name          = "backendhttp"
-          containerPort = local.backend_container_port
-          hostPort      = local.backend_container_port
-          protocol      = "tcp"
-          appProtocol   = "http"
-        }
-      ]
-
-      environment = [
-        {
-          name  = "IOT_HUB_EVENTHUB_NAME"
-          value = "iothub-ehub-st-joseph-73394641-ebeea5ec88"
-        }
-      ]
-
-      secrets = [
-        {
-          name      = "IOT_HUB_EVENTHUB_CONNECTION_STRING"
-          valueFrom = "${data.aws_secretsmanager_secret.backend.arn}:IOT_HUB_EVENTHUB_CONNECTION_STRING::"
-        },
-        {
-          name      = "JWT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.backend.arn}:JWT_SECRET::"
-        },
-        {
-          name      = "MONGODB_URI"
-          valueFrom = "${data.aws_secretsmanager_secret.backend.arn}:MONGODB_URI::"
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.backend.name
-          awslogs-create-group  = "true"
-          awslogs-region        = local.aws_region
-          awslogs-stream-prefix = "ecs"
-        }
-      }
-
-      mountPoints    = []
-      volumesFrom    = []
-      systemControls = []
-    }
-  ])
 }
 
 # Manages the existing ECS service while leaving app image rollouts to CI/CD.
 resource "aws_ecs_service" "backend" {
   name            = local.ecs_service_name
   cluster         = aws_ecs_cluster.main.arn
-  task_definition = aws_ecs_task_definition.backend.arn
+  task_definition = var.initial_task_definition_arn
   desired_count   = 1
 
   platform_version                   = "LATEST"

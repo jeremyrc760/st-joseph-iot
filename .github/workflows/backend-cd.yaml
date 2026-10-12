@@ -7,6 +7,7 @@ on:
     paths:
       - "backend/**"
       - ".github/workflows/backend-cd.yaml"
+      - ".github/workflows/backend-ci.yaml"
 
   workflow_dispatch:
 
@@ -21,16 +22,39 @@ env:
   ECS_SERVICE: st-joseph-iot-backend-service-vge00ihr
   ECS_TASK_DEFINITION: st-joseph-iot-backend
   ECS_CONTAINER_NAME: st-joseph-iot-backend
+  API_BASE_URL: https://api.jeremycloudlabs.com
 
 jobs:
-  build-and-push:
-    name: Build, Push and Deploy Backend Docker Image to Amazon ECR and ECS
+  checks:
+    name: Check and package backend
+    if: ${{ github.ref == 'refs/heads/main' }}
+    uses: ./.github/workflows/backend-ci.yaml
+    with:
+      upload-image: true
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+  deploy:
+    name: Deploy validated backend Docker Image to Amazon ECR and ECS
+    needs: checks
     runs-on: ubuntu-latest
 
     steps:
       # Step 1: Download repository code to the GitHub runner
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Download backend Docker image
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.checks.outputs.image-artifact-id }}
+          path: ${{ runner.temp }}/backend-image
+
+      - name: Load backend Docker image
+        run: |
+          docker load \
+            --input "${RUNNER_TEMP}/backend-image/backend-image.tar"
 
       # Step 2: Use GitHub OIDC to assume the AWS IAM role
       - name: Configure AWS credentials
@@ -44,15 +68,15 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Step 4: Build and tag the Docker image using the Git commit SHA
-      - name: Build Docker image
+      # Step 4: Tag the Docker image using the Git commit SHA
+      - name: Tag backend Docker image for ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            ./backend
+          docker tag \
+            "st-joseph-iot-backend:${IMAGE_TAG}" \
+            "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
       # Step 5: Push the image to Amazon ECR
       - name: Push Docker image to ECR
@@ -65,9 +89,16 @@ jobs:
 
       # Step 6: Download the currently active ECS task definition
       - name: Download current ECS task definition
+        shell: bash
         run: |
+          TASK_DEF_ARN=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
           aws ecs describe-task-definition \
-            --task-definition $ECS_TASK_DEFINITION \
+            --task-definition "$TASK_DEF_ARN" \
             --query taskDefinition \
             > task-definition.json
 
@@ -88,3 +119,33 @@ jobs:
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+
+      - name: Smoke test deployed backend
+        timeout-minutes: 6
+        shell: bash
+        run: |
+          for attempt in {1..12}; do
+            echo "Backend smoke test attempt ${attempt}/12"
+
+            if status_code=$(curl \
+              --fail \
+              --silent \
+              --show-error \
+              --connect-timeout 5 \
+              --max-time 20 \
+              --output /dev/null \
+              --write-out '%{http_code}' \
+              "${API_BASE_URL}/health") && [[ "$status_code" == "200" ]]; then
+              echo "Backend health endpoint returned HTTP 200."
+              exit 0
+            fi
+
+            echo "Backend check failed (HTTP ${status_code:-unknown})."
+
+            if (( attempt < 12 )); then
+              sleep 5
+            fi
+          done
+
+          echo "Backend smoke test failed after 12 attempts."
+          exit 1
