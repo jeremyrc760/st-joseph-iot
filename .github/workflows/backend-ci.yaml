@@ -84,7 +84,7 @@ jobs:
             --tag "st-joseph-iot-backend:${IMAGE_TAG}" \
             ./backend
 
-      - name: Scan backend Docker image
+      - name: Generate full Trivy vulnerability report
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: 'v0.70.0'
@@ -94,6 +94,28 @@ jobs:
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
           ignore-unfixed: 'false'
+          format: 'json'
+          output: 'trivy-report.json'
+          exit-code: '0'
+
+      - name: Upload Trivy vulnerability report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-${{ github.sha }}-${{ github.run_attempt }}
+          path: trivy-report.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Scan backend Docker image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: 'v0.70.0'
+          scan-type: 'image'
+          image-ref: 'st-joseph-iot-backend:${{ github.sha }}'
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: 'true'
           format: 'table'
           exit-code: '1'
 
