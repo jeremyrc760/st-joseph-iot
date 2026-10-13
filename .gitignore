@@ -44,3 +44,10 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# Terraform state backups
+terraform-state-backup-*.json
+
+# Terraform variable values
+*.tfvars
+*.tfvars.json

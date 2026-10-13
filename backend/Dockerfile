@@ -2,8 +2,8 @@
 # Stage 1: Build the NestJS application
 # ============================================================
 
-# Use Node.js 22 on debian Bookworm Slim as the base image for building the application
-FROM node:22-bookworm-slim AS builder
+# Use Node.js 22 on debian Trixie Slim as the base image for building the application
+FROM node:22-trixie-slim AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -27,7 +27,11 @@ RUN npm run build
 
 # Start from a clean Node.js image
 # This keeps build tools and development dependencies out of the final image, reducing its size and attack surface
-FROM node:22-bookworm-slim AS production
+FROM node:22-trixie-slim AS production
+
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -41,6 +45,10 @@ COPY package.json package-lock.json ./
 
 # Install only production dependencies, excluding devDependencies
 RUN npm ci --omit=dev && npm cache clean --force
+
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx
 
 # Copy only the compiled application and necessary files from the builder stage
 # The Typescript source code and development dependencies are not included in the final image

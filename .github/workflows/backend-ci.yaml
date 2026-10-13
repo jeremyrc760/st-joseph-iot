@@ -1,26 +1,46 @@
 name: Backend CI
 
 on:
-  push:
-    branches:
-      - main
-
   pull_request:
     branches:
       - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yaml'
+
+  workflow_call:
+    inputs:
+      upload-image:
+        description: 'Save the Docker image for deployment'
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      image-artifact-id:
+        description: 'Validated image artifact from the successful CI job'
+        value: ${{ jobs.backend-ci.outputs.image-artifact-id }}
+    secrets:
+      SONAR_TOKEN:
+        required: true
+      SONAR_HOST_URL:
+        required: true
+
+permissions:
+  contents: read
 
 jobs:
   backend-ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      image-artifact-id: ${{ steps.upload-image.outputs.artifact-id }}
 
     steps:
-        # Step 1: Check out the repository source code.
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0 # SonarQube requires the full history to compute accurate code coverage and other metrics.
 
-        # Step 2: Set up the Node.js runtime used by the backend
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -28,22 +48,18 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-        # Step 3: Install backend dependencies from package-lock.json  
       - name: Install dependencies
         working-directory: backend
         run: npm ci
 
-        # Step 4: Check code quality without modifying source files
       - name: Run lint tests
         working-directory: backend
         run: npm run lint:check
 
-        # Step 5: Run backend unit tests and generate code coverage report
       - name: Run unit tests with code coverage
         working-directory: backend
         run: npm run test:cov -- --runInBand
 
-        # Step 6: Analyze the backend source code with SonarQube
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995
         with:
@@ -52,7 +68,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-         # Step 7: Fail the CI job if the SonarQube Quality Gate does not pass
       - name: SonarQube Quality Gate
         uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
         timeout-minutes: 5
@@ -61,16 +76,64 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-        # Step 8: Compile the NestJS backend source code to JavaScript
-      - name: Build backend
-        working-directory: backend
-        run: npm run build
+      - name: Build backend Docker image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --tag "st-joseph-iot-backend:${IMAGE_TAG}" \
+            ./backend
 
-        # Step 9: Save the compiled backend output as a CI artifact.
-      - name: Upload backend build artifact
+      - name: Generate full Trivy vulnerability report
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: 'v0.70.0'
+          scan-type: 'image'
+          image-ref: 'st-joseph-iot-backend:${{ github.sha }}'
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: 'false'
+          format: 'json'
+          output: 'trivy-report.json'
+          exit-code: '0'
+
+      - name: Upload Trivy vulnerability report
         uses: actions/upload-artifact@v4
         with:
-          name: backend-dist
-          path: backend/dist
+          name: trivy-report-${{ github.sha }}-${{ github.run_attempt }}
+          path: trivy-report.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
+
+      - name: Scan backend Docker image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: 'v0.70.0'
+          scan-type: 'image'
+          image-ref: 'st-joseph-iot-backend:${{ github.sha }}'
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: 'true'
+          format: 'table'
+          exit-code: '1'
+
+      - name: Save backend Docker image
+        if: ${{ inputs.upload-image == true }}
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker save \
+            --output "${RUNNER_TEMP}/backend-image.tar" \
+            "st-joseph-iot-backend:${IMAGE_TAG}"
+
+      - name: Upload backend Docker image
+        id: upload-image
+        if: ${{ inputs.upload-image == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-image-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/backend-image.tar
+          if-no-files-found: error
+          retention-days: 1
